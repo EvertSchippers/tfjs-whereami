@@ -23,17 +23,32 @@ import {ControllerDataset} from './controller_dataset';
 const button1 = document.getElementById('b1');
 const button2 = document.getElementById('b2');
 const button3 = document.getElementById('b3');
+const trainbutton = document.getElementById('train');
 
 button1.addEventListener('mousedown', () => addSample(0));
 button2.addEventListener('mousedown', () => addSample(1));
 button3.addEventListener('mousedown', () => addSample(2));
+trainbutton.addEventListener('mousedown', () => train());
 
+function setprobability(label, probability)
+{
+
+    document.getElementById('thumb-' + (label + 1)).style.border = "thick solid " + toColor(probability); 
+
+}
 
 export function drawThumb(img, label) {
-  
     const thumbCanvas = document.getElementById('thumb-' + (label + 1));
     draw(img, thumbCanvas);
-  
+
+    var p = [0,0,0];
+    p[label] = 1;
+
+    setprobability(0,p[0]);
+    setprobability(1,p[1]);
+    setprobability(2,p[2]);
+    
+
 }
 
 export function draw(image, canvas) {
@@ -94,6 +109,7 @@ async function addSample(label)
  * Sets up and trains the classifier.
  */
 async function train() {
+
   if (controllerDataset.xs == null) {
     throw new Error('Add some examples before training!');
   }
@@ -150,16 +166,34 @@ async function train() {
     epochs: 20,
     callbacks: {
       onBatchEnd: async (batch, logs) => {
-        ui.trainStatus('Loss: ' + logs.loss.toFixed(5));
+        trainbutton.innerText = 'Loss: ' + logs.loss.toFixed(5);
       }
     }
   });
+
+  predict();
 }
 
 let isPredicting = false;
 
+function dec2hex(dec) {
+  return Number(parseInt( dec , 10)).toString(16);
+}
+
+function pad(h){ //adds leading 0 to single-digit codes
+  if(h.length==1) return "0"+h;
+  else return h;
+}
+
+function toColor(probability)
+{
+   var r = 255 * probability;
+   return "#" + pad(dec2hex(0.2 * r)) + pad(dec2hex(r)) + pad(dec2hex(0.5 * r));
+}
+
 async function predict() {
-  ui.isPredicting();
+  isPredicting = true;
+ 
   while (isPredicting) {
     // Capture the frame from the webcam.
     const img = await getImage();
@@ -168,20 +202,30 @@ async function predict() {
     // the mobilenet model, i.e., "embeddings" of the input images.
     const embeddings = truncatedMobileNet.predict(img);
 
+    console.log("embeddings received!");
+
     // Make a prediction through our newly-trained model using the embeddings
     // from mobilenet as input.
     const predictions = model.predict(embeddings);
 
+    console.log("prediction ready!");
+    
     // Returns the index with the maximum probability. This number corresponds
     // to the class the model thinks is the most probable given the input.
-    const predictedClass = predictions.as1D().argMax();
-    const classId = (await predictedClass.data())[0];
+    const predictedClass = await predictions.as1D().data();
+
+
+    console.log(predictedClass);
+
+    setprobability(0, predictedClass[0]);
+    setprobability(1, predictedClass[1]);
+    setprobability(2, predictedClass[2]);
+
+    // const classId = (await predictedClass.data())[0];
     img.dispose();
 
-    ui.predictClass(classId);
     await tf.nextFrame();
   }
-  ui.donePredicting();
 }
 
 /**
