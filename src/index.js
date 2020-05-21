@@ -256,7 +256,7 @@ async function getImage() {
 async function init() {
  
   const cfg  =  {facingMode: 'environment' }
-  webcam = await tfd.webcam(document.getElementById('webcam', cfg));
+  webcam = await tfd.webcam(document.getElementById('webcam'), cfg);
  
   truncatedMobileNet = await loadTruncatedMobileNet();
 
