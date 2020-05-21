@@ -1,21 +1,29 @@
+/**
+ * @license
+ * Copyright 2018 Google LLC. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * =============================================================================
+ */
+
 import * as tf from '@tensorflow/tfjs';
 import * as tfd from '@tensorflow/tfjs-data';
 
 import {ControllerDataset} from './controller_dataset';
-
-
-
-const button1 = document.getElementById('example1');
-const button2 = document.getElementById('example2');
-const button3 = document.getElementById('example3');
-
-
-
-
+import * as ui from './ui';
 
 // The number of classes we want to predict. In this example, we will be
 // predicting 4 classes for up, down, left, and right.
-const NUM_CLASSES = 3;
+const NUM_CLASSES = 4;
 
 // A webcam iterator that generates Tensors from the images from the webcam.
 let webcam;
@@ -37,26 +45,18 @@ async function loadTruncatedMobileNet() {
   return tf.model({inputs: mobilenet.inputs, outputs: layer.output});
 }
 
-
-
-
-function addExample(label)
-{
+// When the UI buttons are pressed, read a frame from the webcam and associate
+// it with the class label given by the button. up, down, left, right are
+// labels 0, 1, 2, 3 respectively.
+ui.setExampleHandler(async label => {
   let img = await getImage();
 
-//   controllerDataset.addExample(truncatedMobileNet.predict(img), label);
+  controllerDataset.addExample(truncatedMobileNet.predict(img), label);
 
   // Draw the preview thumbnail.
   ui.drawThumb(img, label);
   img.dispose();
-}
-
-
-button1.addEventListener('mousedown', () => addExample(0));
-button2.addEventListener('mousedown', () => addExample(1));
-button3.addEventListener('mousedown', () => addExample(2));
-
-
+})
 
 /**
  * Sets up and trains the classifier.
