@@ -19,11 +19,42 @@ import * as tf from '@tensorflow/tfjs';
 import * as tfd from '@tensorflow/tfjs-data';
 
 import {ControllerDataset} from './controller_dataset';
-import * as ui from './ui';
+
+const button1 = document.getElementById('b1');
+const button2 = document.getElementById('b2');
+const button3 = document.getElementById('b3');
+
+button1.addEventListener('mousedown', () => addSample(0));
+button2.addEventListener('mousedown', () => addSample(1));
+button3.addEventListener('mousedown', () => addSample(2));
+
+
+export function drawThumb(img, label) {
+  
+    const thumbCanvas = document.getElementById('thumb-' + (label + 1));
+    draw(img, thumbCanvas);
+  
+}
+
+export function draw(image, canvas) {
+  const [width, height] = [224, 224];
+  const ctx = canvas.getContext('2d');
+  const imageData = new ImageData(width, height);
+  const data = image.dataSync();
+  for (let i = 0; i < height * width; ++i) {
+    const j = i * 4;
+    imageData.data[j + 0] = (data[i * 3 + 0] + 1) * 127;
+    imageData.data[j + 1] = (data[i * 3 + 1] + 1) * 127;
+    imageData.data[j + 2] = (data[i * 3 + 2] + 1) * 127;
+    imageData.data[j + 3] = 255;
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
 
 // The number of classes we want to predict. In this example, we will be
 // predicting 4 classes for up, down, left, and right.
-const NUM_CLASSES = 4;
+const NUM_CLASSES = 3;
 
 // A webcam iterator that generates Tensors from the images from the webcam.
 let webcam;
@@ -48,15 +79,16 @@ async function loadTruncatedMobileNet() {
 // When the UI buttons are pressed, read a frame from the webcam and associate
 // it with the class label given by the button. up, down, left, right are
 // labels 0, 1, 2, 3 respectively.
-ui.setExampleHandler(async label => {
+async function addSample(label)
+{
   let img = await getImage();
 
   controllerDataset.addExample(truncatedMobileNet.predict(img), label);
 
   // Draw the preview thumbnail.
-  ui.drawThumb(img, label);
+  drawThumb(img, label);
   img.dispose();
-})
+}
 
 /**
  * Sets up and trains the classifier.
@@ -78,7 +110,7 @@ async function train() {
           {inputShape: truncatedMobileNet.outputs[0].shape.slice(1)}),
       // Layer 1.
       tf.layers.dense({
-        units: ui.getDenseUnits(),
+        units: 100,
         activation: 'relu',
         kernelInitializer: 'varianceScaling',
         useBias: true
@@ -95,7 +127,7 @@ async function train() {
   });
 
   // Creates the optimizers which drives training of the model.
-  const optimizer = tf.train.adam(ui.getLearningRate());
+  const optimizer = tf.train.adam(0.0001);
   // We use categoricalCrossentropy which is the loss function we use for
   // categorical classification which measures the error between our predicted
   // probability distribution over classes (probability that an input is of each
@@ -106,7 +138,7 @@ async function train() {
   // number of examples that are collected depends on how many examples the user
   // collects. This allows us to have a flexible batch size.
   const batchSize =
-      Math.floor(controllerDataset.xs.shape[0] * ui.getBatchSizeFraction());
+      Math.floor(controllerDataset.xs.shape[0] * 0.4);
   if (!(batchSize > 0)) {
     throw new Error(
         `Batch size is 0 or NaN. Please choose a non-zero fraction.`);
@@ -115,7 +147,7 @@ async function train() {
   // Train the model! Model.fit() will shuffle xs & ys so we don't have to.
   model.fit(controllerDataset.xs, controllerDataset.ys, {
     batchSize,
-    epochs: ui.getEpochs(),
+    epochs: 20,
     callbacks: {
       onBatchEnd: async (batch, logs) => {
         ui.trainStatus('Loss: ' + logs.loss.toFixed(5));
@@ -164,29 +196,26 @@ async function getImage() {
   return processedImg;
 }
 
-document.getElementById('train').addEventListener('click', async () => {
-  ui.trainStatus('Training...');
-  await tf.nextFrame();
-  await tf.nextFrame();
-  isPredicting = false;
-  train();
-});
-document.getElementById('predict').addEventListener('click', () => {
-  ui.startPacman();
-  isPredicting = true;
-  predict();
-});
+// document.getElementById('train').addEventListener('click', async () => {
+//   ui.trainStatus('Training...');
+//   await tf.nextFrame();
+//   await tf.nextFrame();
+//   isPredicting = false;
+//   train();
+// });
+// document.getElementById('predict').addEventListener('click', () => {
+//   ui.startPacman();
+//   isPredicting = true;
+//   predict();
+// });
 
 async function init() {
-  try {
-    webcam = await tfd.webcam(document.getElementById('webcam'));
-  } catch (e) {
-    console.log(e);
-    document.getElementById('no-webcam').style.display = 'block';
-  }
+  
+  webcam = await tfd.webcam(document.getElementById('webcam'));
+ 
   truncatedMobileNet = await loadTruncatedMobileNet();
 
-  ui.init();
+  
 
   // Warm up the model. This uploads weights to the GPU and compiles the WebGL
   // programs so the first time we collect data from the webcam it will be
