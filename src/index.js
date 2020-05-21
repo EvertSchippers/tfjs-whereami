@@ -254,8 +254,9 @@ async function getImage() {
 // });
 
 async function init() {
-  
-  webcam = await tfd.webcam(document.getElementById('webcam'));
+ 
+  const cfg  =  {facingMode: 'environment' }
+  webcam = await tfd.webcam(document.getElementById('webcam', cfg));
  
   truncatedMobileNet = await loadTruncatedMobileNet();
 
