@@ -15,28 +15,32 @@
  * =============================================================================
  */
 
+// Importing TensorFlow:
 import * as tf from '@tensorflow/tfjs';
 import * as tfd from '@tensorflow/tfjs-data';
 
+// Helper class to add training samples in memory.
 import {ControllerDataset} from './controller_dataset';
 
+// The button:
 const button1 = document.getElementById('b1');
 const button2 = document.getElementById('b2');
 const button3 = document.getElementById('b3');
 const trainbutton = document.getElementById('train');
 
+// The events:
 button1.addEventListener('mousedown', () => addSample(0));
 button2.addEventListener('mousedown', () => addSample(1));
 button3.addEventListener('mousedown', () => addSample(2));
 trainbutton.addEventListener('mousedown', () => train());
 
+// Display the probability:
 function setprobability(label, probability)
 {
-
-    document.getElementById('thumb-' + (label + 1)).style.border = "thick solid " + toColor(probability); 
-
+  document.getElementById('thumb-' + (label + 1)).style.border = "thick solid " + toColor(probability); 
 }
 
+// Drawing a thumbnail:
 export function drawThumb(img, label) {
     const thumbCanvas = document.getElementById('thumb-' + (label + 1));
     draw(img, thumbCanvas);
@@ -47,10 +51,9 @@ export function drawThumb(img, label) {
     setprobability(0,p[0]);
     setprobability(1,p[1]);
     setprobability(2,p[2]);
-    
-
 }
 
+// Drawing on the live canvas:
 export function draw(image, canvas) {
   const [width, height] = [224, 224];
   const ctx = canvas.getContext('2d');
@@ -66,10 +69,9 @@ export function draw(image, canvas) {
   ctx.putImageData(imageData, 0, 0);
 }
 
-
 // The number of classes we want to predict. In this example, we will be
 // predicting 4 classes for up, down, left, and right.
-const NUM_CLASSES = 3;
+const NUM_CLASSES = 3; //PSYCH!!
 
 // A webcam iterator that generates Tensors from the images from the webcam.
 let webcam;
@@ -88,12 +90,12 @@ async function loadTruncatedMobileNet() {
 
   // Return a model that outputs an internal activation.
   const layer = mobilenet.getLayer('conv_pw_13_relu');
+  console.log(layer.outputShape);
   return tf.model({inputs: mobilenet.inputs, outputs: layer.output});
 }
 
-// When the UI buttons are pressed, read a frame from the webcam and associate
-// it with the class label given by the button. up, down, left, right are
-// labels 0, 1, 2, 3 respectively.
+// Picks a frame from the webcam, computes embeddings and adds it as
+// a training sample to the specified label.
 async function addSample(label)
 {
   let img = await getImage();
@@ -171,25 +173,13 @@ async function train() {
     }
   });
 
+  // Funnily enough you'll notice it will start predicting already while training
+  // as the "fit" call is async.
   predict();
 }
 
 let isPredicting = false;
 
-function dec2hex(dec) {
-  return Number(parseInt( dec , 10)).toString(16);
-}
-
-function pad(h){ //adds leading 0 to single-digit codes
-  if(h.length==1) return "0"+h;
-  else return h;
-}
-
-function toColor(probability)
-{
-   var r = 255 * probability;
-   return "#" + pad(dec2hex(0.2 * r)) + pad(dec2hex(r)) + pad(dec2hex(0.5 * r));
-}
 
 async function predict() {
   isPredicting = true;
@@ -201,27 +191,22 @@ async function predict() {
     // Make a prediction through mobilenet, getting the internal activation of
     // the mobilenet model, i.e., "embeddings" of the input images.
     const embeddings = truncatedMobileNet.predict(img);
+    // 7x7x256 apparently
 
-    console.log("embeddings received!");
 
     // Make a prediction through our newly-trained model using the embeddings
     // from mobilenet as input.
     const predictions = model.predict(embeddings);
-
-    console.log("prediction ready!");
     
     // Returns the index with the maximum probability. This number corresponds
     // to the class the model thinks is the most probable given the input.
     const predictedClass = await predictions.as1D().data();
 
 
-    console.log(predictedClass);
-
     setprobability(0, predictedClass[0]);
     setprobability(1, predictedClass[1]);
     setprobability(2, predictedClass[2]);
 
-    // const classId = (await predictedClass.data())[0];
     img.dispose();
 
     await tf.nextFrame();
@@ -240,18 +225,7 @@ async function getImage() {
   return processedImg;
 }
 
-// document.getElementById('train').addEventListener('click', async () => {
-//   ui.trainStatus('Training...');
-//   await tf.nextFrame();
-//   await tf.nextFrame();
-//   isPredicting = false;
-//   train();
-// });
-// document.getElementById('predict').addEventListener('click', () => {
-//   ui.startPacman();
-//   isPredicting = true;
-//   predict();
-// });
+
 
 async function init() {
  
@@ -260,8 +234,6 @@ async function init() {
  
   truncatedMobileNet = await loadTruncatedMobileNet();
 
-  
-
   // Warm up the model. This uploads weights to the GPU and compiles the WebGL
   // programs so the first time we collect data from the webcam it will be
   // quick.
@@ -269,6 +241,24 @@ async function init() {
   truncatedMobileNet.predict(screenShot.expandDims(0));
   screenShot.dispose();
 }
+
+
+
+// Helpers to convert probability into color:
+function dec2hex(dec) {
+  return Number(parseInt( dec , 10)).toString(16);
+}
+function pad(h){ //adds leading 0 to single-digit codes
+  if(h.length==1) return "0"+h;
+  else return h;
+}
+function toColor(probability)
+{
+   var r = 255 * probability;
+   return "#" + pad(dec2hex(0.2 * r)) + pad(dec2hex(r)) + pad(dec2hex(0.5 * r));
+}
+
+
 
 // Initialize the application.
 init();
